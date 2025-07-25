@@ -1,0 +1,16 @@
+version: "2"
+sql:
+  - engine: "mysql"
+    queries:
+      - "messages.sql"
+    schema: "schema.sql"
+    gen:
+      go:
+        package: "db"
+        sql_package: "database/sql"
+        sql_driver: "github.com/go-sql-driver/mysql"
+        out: "../db"
+        overrides:
+          - db_type: "datetime"
+            go_type: "time.Time"
+            nullable: false

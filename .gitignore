@@ -1,0 +1,5 @@
+/docs/.openapi-generator
+/docs/.openapi-generator-ignore
+openapitools.json
+.DS_Store
+.vscode

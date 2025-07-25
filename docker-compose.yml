@@ -1,0 +1,96 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-server
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_DB_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DB_SCHEMA}
+      MYSQL_USER: ${MYSQL_DB_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_DB_PASSWORD}
+    ports:
+      - "${MYSQL_DB_PORT}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - message-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis-server
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - message-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 10s
+      retries: 5
+
+  # auto-message-dispatcher Service
+  auto-message-dispatcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auto-message-dispatcher
+    restart: unless-stopped
+    environment:
+      MYSQL_DB_USERNAME: ${MYSQL_DB_USERNAME}
+      MYSQL_DB_PASSWORD: ${MYSQL_DB_PASSWORD}
+      MYSQL_DB_HOST: mysql-server
+      MYSQL_DB_PORT: ${MYSQL_DB_PORT}
+      MYSQL_DB_SCHEMA: ${MYSQL_DB_SCHEMA}
+      # Redis configuration
+      REDIS_HOST: redis-server
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_USERNAME: ${REDIS_USERNAME}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB}
+      # Messaging API configuration
+      MESSAGING_API_BASE_URL: ${MESSAGING_API_BASE_URL}
+      MESSAGING_API_KEY: ${MESSAGING_API_KEY}
+      # Messaging API authentication
+      API_IP_WHITELIST: ${API_IP_WHITELIST}
+      #username: username
+      #password: password
+      API_USER_CURRENT: ${API_USER_CURRENT}
+      API_USER_PREVIOUS: ${API_USER_PREVIOUS}
+      # Messaging API port
+      MESSAGING_API_PORT: ${MESSAGING_API_PORT}
+      APICallLogs: ${APICallLogs}
+      SQL_DEBUG: ${SQL_DEBUG}
+    ports:
+      - "${MESSAGING_API_PORT}:${MESSAGING_API_PORT}"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - message-network
+    volumes:
+      - ./config:/root/config
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${MESSAGING_API_PORT}/health"]
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  message-network:
+    driver: bridge

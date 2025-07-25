@@ -1,0 +1,157 @@
+openapi: 3.0.3
+info:
+  title: Messaging API
+  description: API for managing message polling and retrieval
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/messaging
+    description: Local development server
+
+paths:
+  /action/start:
+    post:
+      summary: Start message polling
+      description: Starts the message polling from db and sending process
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Message API started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  /action/stop:
+    post:
+      summary: Stop message polling
+      description: Stops the message polling from db and sending process
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Message API stopped successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+  /list/sent:
+    get:
+      summary: List sent messages
+      description: Retrieve a list of all sent messages with pagination
+      security:
+        - basicAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Number of items to return (-1 for no limit)
+          required: false
+          schema:
+            type: integer
+            default: -1
+        - name: offset
+          in: query
+          description: Number of items to skip
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Sent messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SentMessagesResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    BaseResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "200"
+        msg:
+          type: string
+          example: "Operation completed successfully"
+        model:
+          type: object
+          nullable: true
+
+    SentMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 11
+        recipient_phone:
+          type: string
+          example: "+919187655330"
+        content:
+          type: string
+          example: "Hello World1"
+        status:
+          type: string
+          example: "sent"
+        message_id:
+          type: string
+          format: uuid
+          example: "67f2f8a8-ea58-4ed0-a6f9-ff217df4d849"
+        sent_at:
+          type: string
+          format: date-time
+          example: "2025-07-25T22:07:29Z"
+
+    PaginationInfo:
+      type: object
+      properties:
+        limit:
+          type: integer
+          example: 10
+        offset:
+          type: integer
+          example: 0
+        total:
+          type: integer
+          example: 11
+        has_more:
+          type: boolean
+          example: true
+
+    SentMessagesResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "200"
+        msg:
+          type: string
+          example: "Sent messages retrieved successfully"
+        model:
+          type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/SentMessage'
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
