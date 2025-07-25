@@ -24,6 +24,9 @@ graph TD
 - MySQL 8.0
 - Redis 7
 
+## API Documentation
+https://smitendu1997.github.io/auto-message-dispatcher/
+
 ## Quick Start
 
 1. Clone the repository:
