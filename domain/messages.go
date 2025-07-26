@@ -11,6 +11,7 @@ type MessageDomain struct {
 	Status         MessageStatus
 	MessageID      *string
 	SentAt         *time.Time
+	RetryCount     int
 }
 
 func (m *MessageDomain) IsMessageSent() bool {

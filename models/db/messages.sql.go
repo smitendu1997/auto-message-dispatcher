@@ -11,16 +11,21 @@ import (
 )
 
 const getPendingMessage = `-- name: GetPendingMessage :many
-SELECT id, recipient_phone, content, status, messageid, sent_at FROM messages WHERE status = 'pending' LIMIT 2
+SELECT id, recipient_phone, content, status, messageid, sent_at, retry_count
+FROM messages
+WHERE status in ('pending','failed')
+AND (retry_count < 3 OR status = 'pending')
+LIMIT 2
 `
 
 type GetPendingMessageRow struct {
 	ID             int64
 	RecipientPhone string
 	Content        string
-	Status         string
+	Status         MessagesStatus
 	Messageid      sql.NullString
 	SentAt         sql.NullTime
+	RetryCount     int32
 }
 
 func (q *Queries) GetPendingMessage(ctx context.Context) ([]GetPendingMessageRow, error) {
@@ -39,6 +44,7 @@ func (q *Queries) GetPendingMessage(ctx context.Context) ([]GetPendingMessageRow
 			&i.Status,
 			&i.Messageid,
 			&i.SentAt,
+			&i.RetryCount,
 		); err != nil {
 			return nil, err
 		}
@@ -54,7 +60,7 @@ func (q *Queries) GetPendingMessage(ctx context.Context) ([]GetPendingMessageRow
 }
 
 const getSentMessages = `-- name: GetSentMessages :many
-SELECT id, recipient_phone, content, status, messageid, sent_at, createdon FROM messages
+SELECT id, recipient_phone, content, status, messageid, sent_at, createdon, retry_count FROM messages
 WHERE status = 'sent'
 ORDER BY sent_at DESC, id DESC
 LIMIT ? OFFSET ?
@@ -69,10 +75,11 @@ type GetSentMessagesRow struct {
 	ID             int64
 	RecipientPhone string
 	Content        string
-	Status         string
+	Status         MessagesStatus
 	Messageid      sql.NullString
 	SentAt         sql.NullTime
 	Createdon      sql.NullTime
+	RetryCount     int32
 }
 
 func (q *Queries) GetSentMessages(ctx context.Context, arg GetSentMessagesParams) ([]GetSentMessagesRow, error) {
@@ -92,6 +99,7 @@ func (q *Queries) GetSentMessages(ctx context.Context, arg GetSentMessagesParams
 			&i.Messageid,
 			&i.SentAt,
 			&i.Createdon,
+			&i.RetryCount,
 		); err != nil {
 			return nil, err
 		}
@@ -118,18 +126,22 @@ func (q *Queries) GetSentMessagesCount(ctx context.Context) (int64, error) {
 }
 
 const updateMessage = `-- name: UpdateMessage :exec
-UPDATE messages 
-SET 
+UPDATE messages
+SET
     content = COALESCE(?, content),
     status = COALESCE(?, status),
     messageId = COALESCE(?, messageId),
-    sent_at = COALESCE(?, sent_at)
+    sent_at = COALESCE(?, sent_at),
+    retry_count = CASE
+        WHEN ? = 'failed' THEN retry_count + 1
+        ELSE retry_count
+    END
 WHERE id = ?
 `
 
 type UpdateMessageParams struct {
 	Content   sql.NullString
-	Status    sql.NullString
+	Status    NullMessagesStatus
 	MessageId sql.NullString
 	SentAt    sql.NullTime
 	ID        int64
@@ -141,6 +153,7 @@ func (q *Queries) UpdateMessage(ctx context.Context, arg UpdateMessageParams) er
 		arg.Status,
 		arg.MessageId,
 		arg.SentAt,
+		arg.Status,
 		arg.ID,
 	)
 	return err

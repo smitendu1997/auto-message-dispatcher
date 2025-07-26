@@ -11,7 +11,7 @@ func ConvertUpdateMessageParamsToDomain(r *domain.MessageDomain) db.UpdateMessag
 	return db.UpdateMessageParams{
 		ID:        r.ID,
 		Content:   sql.NullString{String: r.Content, Valid: r.Content != ""},
-		Status:    sql.NullString{String: string(r.Status), Valid: r.Status.IsValid()},
+		Status:    db.NullMessagesStatus{MessagesStatus: db.MessagesStatus(string(r.Status)), Valid: r.Status.IsValid()},
 		MessageId: sql.NullString{String: *r.MessageID, Valid: r.MessageID != nil},
 		SentAt:    sql.NullTime{Time: *r.SentAt, Valid: r.SentAt != nil},
 	}

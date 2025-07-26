@@ -10,7 +10,7 @@ func ConvertGetPendingMessageRowToMessageDomain(row *db.GetPendingMessageRow) *d
 		ID:             row.ID,
 		RecipientPhone: row.RecipientPhone,
 		Content:        row.Content,
-		Status:         domain.MessageStatus(row.Status),
+		Status:         domain.MessageStatus(string(row.Status)),
 	}
 	if row.Messageid.Valid {
 		result.MessageID = &row.Messageid.String

@@ -6,7 +6,52 @@ package db
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
 )
+
+type MessagesStatus string
+
+const (
+	MessagesStatusPending MessagesStatus = "pending"
+	MessagesStatusFailed  MessagesStatus = "failed"
+	MessagesStatusSent    MessagesStatus = "sent"
+)
+
+func (e *MessagesStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MessagesStatus(s)
+	case string:
+		*e = MessagesStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MessagesStatus: %T", src)
+	}
+	return nil
+}
+
+type NullMessagesStatus struct {
+	MessagesStatus MessagesStatus
+	Valid          bool // Valid is true if MessagesStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMessagesStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.MessagesStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MessagesStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMessagesStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MessagesStatus), nil
+}
 
 type Message struct {
 	ID int64
@@ -14,11 +59,13 @@ type Message struct {
 	RecipientPhone string
 	// message content
 	Content string
-	Status  string
+	Status  MessagesStatus
 	// message ID from the messaging service
 	Messageid sql.NullString
 	// when the message was sent
 	SentAt sql.NullTime
+	// number of retry attempts
+	RetryCount int32
 	// Record creation timestamp
 	Createdon sql.NullTime
 	// Record last updated timestamp
